@@ -38,6 +38,7 @@ type Query {
   allPhotos: [Photo!]!
   totalUsers: Int!
   allUsers: [User!]!
+  me: User
 }
 
 type Mutation {

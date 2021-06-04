@@ -13,8 +13,16 @@ async function start() {
   const MONGO_DB = process.env.DB_HOST;
   const client = await MongoClient.connect(MONGO_DB, { useNewUrlParser: true });
   const db = client.db();
-  const context = { db };
-  const server = new ApolloServer({ typeDefs, resolvers, context });
+
+  const server = new ApolloServer({
+    typeDefs,
+    resolvers,
+    context: async ({ req }) => {
+      const githubToken = req.headers.authorization;
+      const currentUser = await db.collection('users').findOne({ githubToken });
+      return { db, currentUser };
+    },
+  });
   server.applyMiddleware({ app });
   app.get('/', (req, res) => res.end('Welcome to the PhotoShare API'));
   app.get('/playground', expressPlayground({ endpoint: '/graphql' }));
