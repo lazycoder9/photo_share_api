@@ -10,13 +10,18 @@ module.exports = {
     me: (parent, args, { currentUser }) => currentUser,
   },
   Mutation: {
-    postPhoto(_parent, args) {
+    async postPhoto(_parent, args, { db, currentUser }) {
+      if (!currentUser) {
+        throw new Error('Only an authorized user can post a photo');
+      }
       const newPhoto = {
-        id: _id++,
-        created: new Date(),
         ...args.input,
+        userID: currentUser.githubLogin,
+        created: new Date(),
       };
-      photos.push(newPhoto);
+      const { insertedIds } = await db.collection('photos').insert(newPhoto);
+      newPhoto.id = insertedIds['0'];
+
       return newPhoto;
     },
     async githubAuth(_parent, { code }, { db }) {
@@ -45,13 +50,14 @@ module.exports = {
     },
   },
   Photo: {
-    url: (parent) => `http://myphotos.com/photo/${parent.id}.jpg`,
-    postedBy: (parent) => users.find((u) => parent.githubUser === u.githubLogin),
-    taggedUsers: (parent) =>
-      tags
-        .filter((tag) => tag.photoID === parent.id)
-        .map((tag) => tag.userID)
-        .map((userID) => users.find((u) => u.githubLogin === userID)),
+    id: (parent) => parent.id || parent._id,
+    url: (parent) => `/img/photos/${parent._id}.jpg`,
+    postedBy: (parent, args, { db }) => db.collection('users').findOne({ githubLogin: parent.userID }),
+    // taggedUsers: (parent) =>
+    //   tags
+    //     .filter((tag) => tag.photoID === parent.id)
+    //     .map((tag) => tag.userID)
+    //     .map((userID) => users.find((u) => u.githubLogin === userID)),
   },
   User: {
     postedPhotos: (parent) => photos.filter((p) => p.githubUser === parent.githubLogin),
